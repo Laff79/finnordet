@@ -62,14 +62,20 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
     });
   };
 
-  const handleMouseDown = (row: number, col: number) => {
-    setIsSelecting(true);
-    setSelectedCells([{ row, col }]);
+  const getCellFromPoint = (x: number, y: number): Cell | null => {
+    if (!gridRef.current) return null;
+    const element = document.elementFromPoint(x, y);
+    if (!element) return null;
+
+    const cellElement = element.closest('[data-cell]');
+    if (!cellElement) return null;
+
+    const row = parseInt(cellElement.getAttribute('data-row') || '0');
+    const col = parseInt(cellElement.getAttribute('data-col') || '0');
+    return { row, col };
   };
 
-  const handleMouseEnter = (row: number, col: number) => {
-    if (!isSelecting) return;
-
+  const updateSelection = (row: number, col: number) => {
     const lastCell = selectedCells[selectedCells.length - 1];
     if (!lastCell || (lastCell.row === row && lastCell.col === col)) return;
 
@@ -94,7 +100,43 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
     }
   };
 
+  const handleMouseDown = (row: number, col: number) => {
+    setIsSelecting(true);
+    setSelectedCells([{ row, col }]);
+  };
+
+  const handleMouseEnter = (row: number, col: number) => {
+    if (!isSelecting) return;
+    updateSelection(row, col);
+  };
+
   const handleMouseUp = () => {
+    if (selectedCells.length > 0) {
+      checkForWord();
+    }
+    setIsSelecting(false);
+    setSelectedCells([]);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, row: number, col: number) => {
+    e.preventDefault();
+    setIsSelecting(true);
+    setSelectedCells([{ row, col }]);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (!isSelecting) return;
+
+    const touch = e.touches[0];
+    const cell = getCellFromPoint(touch.clientX, touch.clientY);
+    if (cell) {
+      updateSelection(cell.row, cell.col);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
     if (selectedCells.length > 0) {
       checkForWord();
     }
@@ -123,9 +165,11 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
   return (
     <div
       ref={gridRef}
-      className="inline-block select-none"
+      className="inline-block select-none touch-none"
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="grid gap-1 bg-white p-4 rounded-lg shadow-lg">
         {grid.map((row, rowIndex) => (
@@ -137,8 +181,11 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
               return (
                 <div
                   key={`${rowIndex}-${colIndex}`}
+                  data-cell
+                  data-row={rowIndex}
+                  data-col={colIndex}
                   className={`
-                    w-8 h-8 flex items-center justify-center
+                    w-10 h-10 md:w-8 md:h-8 flex items-center justify-center
                     font-semibold text-sm cursor-pointer
                     rounded transition-colors
                     ${found ? 'bg-green-200 text-green-800' : 'bg-gray-50 hover:bg-gray-100'}
@@ -146,6 +193,7 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
                   `}
                   onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
                   onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
+                  onTouchStart={(e) => handleTouchStart(e, rowIndex, colIndex)}
                 >
                   {letter}
                 </div>

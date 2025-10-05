@@ -13,10 +13,25 @@ function App() {
   const [foundWords, setFoundWords] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [score, setScore] = useState(0);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [isGameActive, setIsGameActive] = useState(false);
 
   useEffect(() => {
     loadGames();
   }, []);
+
+  useEffect(() => {
+    let interval: number | undefined;
+    if (isGameActive && currentGame && foundWords.size < currentGame.words.length) {
+      interval = window.setInterval(() => {
+        setTimeElapsed(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isGameActive, currentGame, foundWords.size]);
 
   const loadGames = async () => {
     setLoading(true);
@@ -64,23 +79,51 @@ function App() {
       setGames([data, ...games]);
       setCurrentGame(data);
       setFoundWords(new Set());
+      setScore(0);
+      setTimeElapsed(0);
+      setIsGameActive(false);
     }
 
     setIsCreating(false);
   };
 
-  const handleWordFound = (word: string) => {
-    setFoundWords(prev => new Set([...prev, word]));
+  const handleWordFound = async (word: string) => {
+    if (!isGameActive) {
+      setIsGameActive(true);
+    }
+    const newFoundWords = new Set([...foundWords, word]);
+    setFoundWords(newFoundWords);
+    const wordLength = word.length;
+    const timeBonus = Math.max(0, 100 - timeElapsed);
+    const points = wordLength * 10 + timeBonus;
+    const newScore = score + points;
+    setScore(newScore);
+
+    if (currentGame && newFoundWords.size === currentGame.words.length) {
+      await supabase.from('game_scores').insert([{
+        game_id: currentGame.id,
+        score: newScore,
+        time_seconds: timeElapsed,
+        words_found: newFoundWords.size,
+        completed: true,
+      }]);
+    }
   };
 
   const handleSelectGame = (game: WordSearchGame) => {
     setCurrentGame(game);
     setFoundWords(new Set());
+    setScore(0);
+    setTimeElapsed(0);
+    setIsGameActive(false);
   };
 
   const handleNewGame = () => {
     setCurrentGame(null);
     setFoundWords(new Set());
+    setScore(0);
+    setTimeElapsed(0);
+    setIsGameActive(false);
   };
 
   if (loading) {
@@ -128,20 +171,36 @@ function App() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <h2 className="text-3xl font-bold text-gray-800">{currentGame.title}</h2>
-              <button
-                onClick={handleNewGame}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-              >
-                <Plus size={20} />
-                Nytt spill
-              </button>
+
+              <div className="flex items-center gap-4">
+                <div className="bg-white px-6 py-3 rounded-lg shadow-md">
+                  <div className="text-sm text-gray-600 mb-1">Tid</div>
+                  <div className="text-2xl font-bold text-gray-800">
+                    {Math.floor(timeElapsed / 60)}:{(timeElapsed % 60).toString().padStart(2, '0')}
+                  </div>
+                </div>
+
+                <div className="bg-white px-6 py-3 rounded-lg shadow-md">
+                  <div className="text-sm text-gray-600 mb-1">Poeng</div>
+                  <div className="text-2xl font-bold text-blue-600">{score}</div>
+                </div>
+
+                <button
+                  onClick={handleNewGame}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <Plus size={20} />
+                  Nytt spill
+                </button>
+              </div>
             </div>
 
             {foundWords.size === currentGame.words.length && (
-              <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-green-800">Gratulerer! Du fant alle ordene!</p>
+              <div className="bg-green-100 border-2 border-green-500 rounded-lg p-6 text-center">
+                <p className="text-2xl font-bold text-green-800 mb-2">Gratulerer! Du fant alle ordene!</p>
+                <p className="text-lg text-green-700">Sluttpoeng: {score} | Tid: {Math.floor(timeElapsed / 60)}:{(timeElapsed % 60).toString().padStart(2, '0')}</p>
               </div>
             )}
 
