@@ -21,6 +21,7 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
   const [foundWords, setFoundWords] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
+  const gridSize = grid.length;
 
   const isCellSelected = (row: number, col: number) => {
     return selectedCells.some(cell => cell.row === row && cell.col === col);
@@ -135,13 +136,22 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
     }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
+  const finalizeSelection = () => {
     if (selectedCells.length > 0) {
       checkForWord();
     }
     setIsSelecting(false);
     setSelectedCells([]);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    finalizeSelection();
+  };
+
+  const handleTouchCancel = (e: React.TouchEvent) => {
+    e.preventDefault();
+    finalizeSelection();
   };
 
   const checkForWord = () => {
@@ -165,42 +175,45 @@ export default function WordSearchGrid({ grid, words, onWordFound }: Props) {
   return (
     <div
       ref={gridRef}
-      className="inline-block select-none touch-none"
+      className="inline-block select-none touch-none w-full"
+      style={{ maxWidth: 'min(90vw, 28rem)' }}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
     >
-      <div className="grid gap-1 bg-white p-4 rounded-lg shadow-lg">
-        {grid.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex gap-1">
-            {row.map((letter, colIndex) => {
-              const selected = isCellSelected(rowIndex, colIndex);
-              const found = isCellInFoundWord(rowIndex, colIndex);
+      <div
+        className="grid gap-1 bg-white p-4 rounded-lg shadow-lg"
+        style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}
+      >
+        {grid.map((row, rowIndex) =>
+          row.map((letter, colIndex) => {
+            const selected = isCellSelected(rowIndex, colIndex);
+            const found = isCellInFoundWord(rowIndex, colIndex);
 
-              return (
-                <div
-                  key={`${rowIndex}-${colIndex}`}
-                  data-cell
-                  data-row={rowIndex}
-                  data-col={colIndex}
-                  className={`
-                    w-10 h-10 md:w-8 md:h-8 flex items-center justify-center
-                    font-semibold text-sm cursor-pointer
-                    rounded transition-colors
-                    ${found ? 'bg-green-200 text-green-800' : 'bg-gray-50 hover:bg-gray-100'}
-                    ${selected ? 'bg-blue-300 text-blue-900' : ''}
-                  `}
-                  onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
-                  onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
-                  onTouchStart={(e) => handleTouchStart(e, rowIndex, colIndex)}
-                >
-                  {letter}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+            return (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                data-cell
+                data-row={rowIndex}
+                data-col={colIndex}
+                className={`
+                  flex items-center justify-center
+                  font-semibold text-xs sm:text-sm cursor-pointer
+                  rounded transition-colors w-full aspect-square
+                  ${found ? 'bg-green-200 text-green-800' : 'bg-gray-50 hover:bg-gray-100'}
+                  ${selected ? 'bg-blue-300 text-blue-900' : ''}
+                `}
+                onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
+                onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
+                onTouchStart={(e) => handleTouchStart(e, rowIndex, colIndex)}
+              >
+                {letter}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
