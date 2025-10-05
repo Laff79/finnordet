@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, List, X } from 'lucide-react';
 import { supabase, type WordSearchGame } from './lib/supabase';
 import { generateWordSearch, type WordPlacement } from './utils/wordSearchGenerator';
 import { getRandomWords } from './utils/norwegianWords';
@@ -16,6 +16,7 @@ function App() {
   const [score, setScore] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isGameActive, setIsGameActive] = useState(false);
+  const [isWordListOpen, setWordListOpen] = useState(false);
 
   useEffect(() => {
     loadGames();
@@ -116,6 +117,7 @@ function App() {
     setScore(0);
     setTimeElapsed(0);
     setIsGameActive(false);
+    setWordListOpen(false);
   };
 
   const handleNewGame = () => {
@@ -124,6 +126,7 @@ function App() {
     setScore(0);
     setTimeElapsed(0);
     setIsGameActive(false);
+    setWordListOpen(false);
   };
 
   if (loading) {
@@ -205,22 +208,55 @@ function App() {
             )}
 
             <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+              <button
+                type="button"
+                onClick={() => setWordListOpen(true)}
+                className="lg:hidden self-center bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md flex items-center gap-2"
+              >
+                <List size={18} />
+                Vis ordliste
+              </button>
+
               <WordSearchGrid
                 grid={currentGame.grid_data}
                 words={currentGame.words}
                 onWordFound={handleWordFound}
               />
 
-              <div className="lg:w-80">
+              <div className="lg:w-80 hidden lg:block">
                 <WordList
                   words={currentGame.words.map((w: WordPlacement) => w.word)}
                   foundWords={foundWords}
+                  variant="panel"
                 />
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {currentGame && isWordListOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-4 max-h-[70vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-800">Ord å finne</h3>
+              <button
+                type="button"
+                onClick={() => setWordListOpen(false)}
+                className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
+                aria-label="Lukk ordliste"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <WordList
+              words={currentGame.words.map((w: WordPlacement) => w.word)}
+              foundWords={foundWords}
+              variant="drawer"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
